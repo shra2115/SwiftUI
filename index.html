@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SwiftUI List Screen: MVC vs MVVM</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mu:#5f6b7a;--bd:#e1e5ea;--ac:#2874f0;--code:#0f172a;--codetx:#e2e8f0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1318;--card:#171c23;--tx:#e8ecf1;--mu:#93a0b0;--bd:#2a323c;--ac:#5b9bff;--code:#0a0e14;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1318;--card:#171c23;--tx:#e8ecf1;--mu:#93a0b0;--bd:#2a323c;--ac:#5b9bff;--code:#0a0e14;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.w{max-width:1100px;margin:auto;padding:20px 16px 48px}
+h1{font-size:24px;margin:0 0 4px}p.s{color:var(--mu);margin:0 0 16px}
+.tabs{display:flex;gap:8px;margin:12px 0}
+.tab,.fb{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
+.tab.on,.fb.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.grid{display:grid;grid-template-columns:1fr 330px;gap:16px}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:16px;min-width:0}
+.card h2{font-size:16px;margin:0 0 8px}
+pre{margin:0;overflow-x:auto;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.code{background:var(--code);color:var(--codetx);border-radius:8px;padding:12px;max-height:520px;overflow:auto}
+.tree{background:var(--bg);border-radius:8px;padding:10px}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.fb{padding:5px 10px;font-size:13px}
+.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
+.cp{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:6px;padding:4px 10px;cursor:pointer}
+.phone{width:290px;margin:auto;border:8px solid #222;border-radius:34px;background:#fff;color:#111;overflow:hidden}
+.ph-h{background:#2874f0;color:#fff;padding:14px 12px 10px;font-weight:700}
+.ph-s{margin-top:8px;background:#fff;color:#888;border-radius:4px;padding:6px 8px;font-weight:400;font-size:12px}
+.pr{display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid #eee}
+.im{width:60px;height:60px;border-radius:8px;background:#eef3fd;display:flex;align-items:center;justify-content:center;font-size:30px;flex:none}
+.pt{font-weight:600;font-size:13px}.pb{color:#777;font-size:11px}.pp{font-weight:700;font-size:14px}
+.pp s{color:#999;font-weight:400;font-size:11px}.pp i{color:#388e3c;font-style:normal;font-size:11px}
+.rt{display:inline-block;background:#388e3c;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}
+.flow span{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:4px 8px}
+.note{color:var(--mu);font-size:13px}
+ul{margin:6px 0 0;padding-left:20px}
+</style></head><body><div class="w">
+<h1>SwiftUI List Screen: MVC vs MVVM</h1>
+<p class="s">A Flipkart-style product list with REST API, in both architectures. Same Model, same UI, different responsibilities.</p>
+<div class="tabs"><button class="tab on" data-a="mvc">MVC</button><button class="tab" data-a="mvvm">MVVM</button></div>
+<div class="grid"><div>
+<div class="card"><h2>Folder structure</h2><pre class="tree" id="tree"></pre></div>
+<div class="card"><h2>Data flow</h2><div class="flow" id="flow"></div><ul id="why"></ul></div>
+<div class="card"><div class="files" id="files"></div>
+<div class="row"><b id="fname"></b><button class="cp" id="cp">Copy</button></div>
+<pre class="code" id="code"></pre></div>
+<div class="card"><h2>API and API key</h2>
+<p class="note">API used: <b>dummyjson.com/products</b> (free, no key needed, has images, price, rating, discount). If the interviewer gives a key (Google or other), paste it in <b>Config.swift</b>. Two common styles are handled in the code: a header key, or a <code>?key=</code> query parameter (Google style).</p>
+<p class="note">Xcode setup: New Project, iOS App, Interface SwiftUI. Add the files below, run. If the API is plain http, add an ATS exception in Info.plist; https needs nothing.</p></div>
+</div>
+<div class="card"><h2>App preview</h2>
+<div class="phone"><div class="ph-h">ShopKart<div class="ph-s">Search products</div></div>
+<div class="pr"><div class="im">📱</div><div><div class="pt">iPhone 15 Pro</div><div class="pb">Apple</div><div class="pp">₹999 <s>₹1,050</s> <i>5% off</i></div><span class="rt">4.8 ★</span></div></div>
+<div class="pr"><div class="im">💻</div><div><div class="pt">Laptop Air 13</div><div class="pb">Acme</div><div class="pp">₹1,299 <s>₹1,420</s> <i>9% off</i></div><span class="rt">4.5 ★</span></div></div>
+<div class="pr"><div class="im">🎧</div><div><div class="pt">Wireless Headphones</div><div class="pb">Sonic</div><div class="pp">₹149 <s>₹175</s> <i>15% off</i></div><span class="rt">4.2 ★</span></div></div>
+<div class="pr"><div class="im">⌚</div><div><div class="pt">Smart Watch S2</div><div class="pb">Fitly</div><div class="pp">₹199 <s>₹230</s> <i>13% off</i></div><span class="rt">4.0 ★</span></div></div>
+<div class="pr"><div class="im">👟</div><div><div class="pt">Running Shoes</div><div class="pb">Stride</div><div class="pp">₹89 <s>₹99</s> <i>10% off</i></div><span class="rt">4.4 ★</span></div></div></div>
+<p class="note" style="text-align:center;margin-top:10px">Sample data for illustration. Real app loads from the API, with images via AsyncImage.</p></div></div></div>
+
+<script type="text/plain" id="cfg">import Foundation
+
+enum Config {
+    static let baseURL = "https://dummyjson.com"
+    // Paste the key from the interviewer here. Leave empty if not needed.
+    static let apiKey = ""
+
+    // Builds the request. Handles both header-style and Google-style (?key=) keys.
+    static func productsRequest() -> URLRequest? {
+        var comps = URLComponents(string: baseURL + "/products")
+        var items = [URLQueryItem(name: "limit", value: "30")]
+        if !apiKey.isEmpty {
+            items.append(URLQueryItem(name: "key", value: apiKey)) // Google style
+        }
+        comps?.queryItems = items
+        guard let url = comps?.url else { return nil }
+        var request = URLRequest(url: url)
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") // header style
+        }
+        return request
+    }
+}</script>
+<script type="text/plain" id="model">import Foundation
+
+// MODEL: pure data, no UI, no networking.
+struct Product: Identifiable, Decodable {
+    let id: Int
+    let title: String
+    let brand: String?
+    let price: Double
+    let discountPercentage: Double
+    let rating: Double
+    let thumbnail: String
+}
+
+struct ProductResponse: Decodable {
+    let products: [Product]
+}</script>
+<script type="text/plain" id="mvc_ctrl">import Foundation
+
+// CONTROLLER: fetches data, owns the Model array, exposes state to the View.
+final class ProductController: ObservableObject {
+    @Published private(set) var products: [Product] = []
+    @Published private(set) var isLoading = false
+    @Published private(set) var errorMessage: String?
+
+    @MainActor
+    func loadProducts() async {
+        guard let request = Config.productsRequest() else {
+            errorMessage = "Invalid URL"
+            return
+        }
+        isLoading = true
+        errorMessage = nil
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let response = try JSONDecoder().decode(ProductResponse.self, from: data)
+            products = response.products
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+}</script>
+<script type="text/plain" id="mvc_row">import SwiftUI
+
+// VIEW: in MVC the view reads the Model directly and formats it itself.
+struct ProductRowView: View {
+    let product: Product
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            AsyncImage(url: URL(string: product.thumbnail)) { image in
+                image.resizable().scaledToFit()
+            } placeholder: {
+                Color.gray.opacity(0.15)
+            }
+            .frame(width: 72, height: 72)
+            .cornerRadius(8)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(product.title).font(.headline).lineLimit(2)
+                Text(product.brand ?? "").font(.caption).foregroundColor(.secondary)
+                HStack {
+                    Text("₹\(Int(product.price))").bold()
+                    Text("\(Int(product.discountPercentage))% off")
+                        .font(.caption).foregroundColor(.green)
+                }
+                Text(String(format: "%.1f ★", product.rating))
+                    .font(.caption2).padding(.horizontal, 6)
+                    .background(Color.green).foregroundColor(.white).cornerRadius(4)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}</script>
+<script type="text/plain" id="mvc_list">import SwiftUI
+
+struct ProductListView: View {
+    @StateObject private var controller = ProductController()
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if controller.isLoading {
+                    ProgressView("Loading...")
+                } else if let message = controller.errorMessage {
+                    VStack(spacing: 12) {
+                        Text(message).foregroundColor(.red)
+                        Button("Retry") { Task { await controller.loadProducts() } }
+                    }
+                } else {
+                    List(controller.products) { product in
+                        ProductRowView(product: product)
+                    }
+                    .listStyle(.plain)
+                }
+            }
+            .navigationTitle("ShopKart")
+        }
+        .task { await controller.loadProducts() }
+    }
+}</script>
+<script type="text/plain" id="app">import SwiftUI
+
+@main
+struct ShopKartApp: App {
+    var body: some Scene {
+        WindowGroup { ProductListView() }
+    }
+}</script>
+<script type="text/plain" id="svc">import Foundation
+
+// SERVICE: networking only. A protocol lets you swap in a mock for testing.
+protocol ProductServiceProtocol {
+    func fetchProducts() async throws -> [Product]
+}
+
+struct ProductService: ProductServiceProtocol {
+    func fetchProducts() async throws -> [Product] {
+        guard let request = Config.productsRequest() else {
+            throw URLError(.badURL)
+        }
+        let (data, _) = try await URLSession.shared.data(for: request)
+        return try JSONDecoder().decode(ProductResponse.self, from: data).products
+    }
+}</script>
+<script type="text/plain" id="vm">import Foundation
+
+// Presentation-ready data: the View just displays these strings.
+struct ProductRowViewModel: Identifiable {
+    let id: Int
+    let title: String
+    let brand: String
+    let priceText: String
+    let discountText: String
+    let ratingText: String
+    let imageURL: URL?
+
+    init(_ p: Product) {
+        id = p.id
+        title = p.title
+        brand = p.brand ?? ""
+        priceText = "₹\(Int(p.price))"
+        discountText = "\(Int(p.discountPercentage))% off"
+        ratingText = String(format: "%.1f ★", p.rating)
+        imageURL = URL(string: p.thumbnail)
+    }
+}
+
+// VIEWMODEL: state + logic. No SwiftUI views, no URLSession.
+@MainActor
+final class ProductListViewModel: ObservableObject {
+    enum State { case idle, loading, loaded, failed(String) }
+
+    @Published private(set) var state: State = .idle
+    @Published var searchText = ""
+    private var all: [ProductRowViewModel] = []
+    private let service: ProductServiceProtocol
+
+    init(service: ProductServiceProtocol = ProductService()) {
+        self.service = service
+    }
+
+    var items: [ProductRowViewModel] {
+        searchText.isEmpty ? all
+            : all.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    func load() async {
+        state = .loading
+        do {
+            all = try await service.fetchProducts().map(ProductRowViewModel.init)
+            state = .loaded
+        } catch {
+            state = .failed(error.localizedDescription)
+        }
+    }
+}</script>
+<script type="text/plain" id="mvvm_row">import SwiftUI
+
+// VIEW: no formatting logic, just layout of ViewModel properties.
+struct ProductRowView: View {
+    let item: ProductRowViewModel
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            AsyncImage(url: item.imageURL) { image in
+                image.resizable().scaledToFit()
+            } placeholder: {
+                Color.gray.opacity(0.15)
+            }
+            .frame(width: 72, height: 72)
+            .cornerRadius(8)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title).font(.headline).lineLimit(2)
+                Text(item.brand).font(.caption).foregroundColor(.secondary)
+                HStack {
+                    Text(item.priceText).bold()
+                    Text(item.discountText).font(.caption).foregroundColor(.green)
+                }
+                Text(item.ratingText)
+                    .font(.caption2).padding(.horizontal, 6)
+                    .background(Color.green).foregroundColor(.white).cornerRadius(4)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}</script>
+<script type="text/plain" id="mvvm_list">import SwiftUI
+
+struct ProductListView: View {
+    @StateObject private var vm = ProductListViewModel()
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                switch vm.state {
+                case .idle, .loading:
+                    ProgressView("Loading...")
+                case .failed(let message):
+                    VStack(spacing: 12) {
+                        Text(message).foregroundColor(.red)
+                        Button("Retry") { Task { await vm.load() } }
+                    }
+                case .loaded:
+                    List(vm.items) { item in
+                        ProductRowView(item: item)
+                    }
+                    .listStyle(.plain)
+                }
+            }
+            .navigationTitle("ShopKart")
+            .searchable(text: $vm.searchText)
+        }
+        .task { await vm.load() }
+    }
+}</script>
+
+<script>
+const T=id=>document.getElementById(id).textContent;
+const D={
+mvc:{tree:`ShopKart/
+├── ShopKartApp.swift
+├── Config.swift          (URL + API key)
+├── Model/
+│   └── Product.swift
+├── View/
+│   ├── ProductListView.swift
+│   └── ProductRowView.swift
+└── Controller/
+    └── ProductController.swift`,
+flow:["View","→ asks →","Controller","→ URLSession →","API","→ JSON →","Model","→ Controller → View"],
+why:["Controller does networking AND holds the data.","View reads Model fields directly and formats price, discount, rating itself.","Fewer files, quicker to write in an interview.","Weakness: view and controller get tightly coupled, hard to unit test."],
+files:[["ShopKartApp.swift","app"],["Config.swift","cfg"],["Product.swift","model"],["ProductController.swift","mvc_ctrl"],["ProductRowView.swift","mvc_row"],["ProductListView.swift","mvc_list"]]},
+mvvm:{tree:`ShopKart/
+├── ShopKartApp.swift
+├── Config.swift          (URL + API key)
+├── Model/
+│   └── Product.swift
+├── Services/
+│   └── ProductService.swift
+├── ViewModel/
+│   └── ProductListViewModel.swift
+└── View/
+    ├── ProductListView.swift
+    └── ProductRowView.swift`,
+flow:["View","⇄ binds ⇄","ViewModel","→ calls →","Service","→ URLSession →","API","→ Model → ViewModel → View"],
+why:["Service does networking only (protocol, so it can be mocked).","ViewModel holds state, search, and formats Model into display strings.","View only lays out what the ViewModel publishes.","Easy to unit test: inject a fake service. Say this in the interview."],
+files:[["ShopKartApp.swift","app"],["Config.swift","cfg"],["Product.swift","model"],["ProductService.swift","svc"],["ProductListViewModel.swift","vm"],["ProductRowView.swift","mvvm_row"],["ProductListView.swift","mvvm_list"]]}};
+let cur="mvc",f=0;
+function render(){const d=D[cur];
+document.getElementById("tree").textContent=d.tree;
+document.getElementById("flow").innerHTML=d.flow.map(x=>x.includes("→")&&x.length<16||x.includes("⇄")&&x.length<14?`<b>${x}</b>`:`<span>${x}</span>`).join("");
+document.getElementById("why").innerHTML=d.why.map(x=>`<li>${x}</li>`).join("");
+const fl=document.getElementById("files");fl.innerHTML="";
+d.files.forEach((x,i)=>{const b=document.createElement("button");b.className="fb"+(i===f?" on":"");b.textContent=x[0];b.onclick=()=>{f=i;render()};fl.appendChild(b)});
+document.getElementById("fname").textContent=d.files[f][0];
+document.getElementById("code").textContent=T(d.files[f][1]);
+document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.a===cur))}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{cur=t.dataset.a;f=0;render()});
+document.getElementById("cp").onclick=async e=>{try{await navigator.clipboard.writeText(document.getElementById("code").textContent);e.target.textContent="Copied";setTimeout(()=>e.target.textContent="Copy",1200)}catch(_){}};
+render();
+</script></body></html>
